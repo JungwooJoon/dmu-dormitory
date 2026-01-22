@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기숙사생 관리 시스템</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', path='dmu-logo.png') }}">
+    <style>
+        :root {
+            --dmu-blue: #004da0;
+            --dmu-dark: #003366;
+            --dmu-gold: #a8945d;
+            --sidebar-width: 260px;
+            --bg-color: #f0f2f5;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: var(--bg-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 좌측 사이드바 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--dmu-dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            color: var(--dmu-gold);
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            padding: 1.5rem 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: 0.3s;
+            font-weight: 500;
+        }
+
+        .sidebar-menu a i {
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-menu a:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar-menu a.active {
+            color: white;
+            background: var(--dmu-blue);
+            border-left: 4px solid var(--dmu-gold);
+        }
+
+        /* 메인 콘텐츠 영역 */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+        }
+
+        .content-header h2 {
+            margin: 0;
+            color: #1a1a1a;
+            font-size: 1.5rem;
+        }
+
+        .dropzone {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            background-color: #fcfcfc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .dropzone:hover {
+            border-color: #004ea2; /* DMU 블루 */
+            background-color: #f0f7ff;
+        }
+
+        .dropzone i {
+            color: #004ea2;
+            transition: transform 0.3s ease;
+        }
+
+        .dropzone:hover i {
+            transform: translateY(-5px);
+        }
+
+        .dropzone p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #666;
+            word-break: break-all;
+        }
+
+        /* 드래그 중일 때 효과를 주고 싶다면 추가할 클래스 */
+        .dropzone.dragover {
+            border-color: #004ea2;
+            background-color: #e6f0ff;
+        }
+
+        /* 카드 디자인 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e1e4e8;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .btn-download {
+            background-color: #217346; /* 엑셀 브랜드 색상 */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px; /* 아이콘과 텍스트 간격 */
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-download:hover {
+            background-color: #1a5a37;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px); /* 살짝 떠오르는 효과 */
+        }
+
+        .btn-download:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--dmu-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dmu-dark);
+        }
+
+        .btn-gold {
+            background: var(--dmu-gold);
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            color: #495057;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="sidebar-header" style="cursor:default">
+        <h1>DMU Dormitory</h1>
+        <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">기숙사 통합 관리 시스템</p>
+    </div>
+    <nav class="sidebar-menu">
+        <a href="/" class="{{ 'active' if page == 'selection' else '' }}">
+            <i class="fas fa-user-check"></i> 1단계: 입사생 선발
+        </a>
+        <a href="/assignment/room-assignment" class="{{ 'active' if page == 'assignment' else '' }}">
+            <i class="fas fa-bed"></i> 2단계: 호실 배정
+        </a>
+
+        <div style="padding: 2rem 1.5rem 0.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); text-transform: uppercase;">
+            Templates
+        </div>
+        <a href="/assignment/download-student-template">
+            <i class="fas fa-file-download"></i> 학생 양식 다운로드
+        </a>
+        <a href="/assignment/download-room-template">
+            <i class="fas fa-file-download"></i> 방 정보 양식 다운로드
+        </a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    {% block content %}{% endblock %}
+</main>
+
+</body>
+<script>
+    function updateFileName(input, targetId) {
+        const fileName = input.files[0] ? input.files[0].name : "선택된 파일 없음";
+        document.getElementById(targetId).innerText = fileName;
+    }
+</script>
+</html>

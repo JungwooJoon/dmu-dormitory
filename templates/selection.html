@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-header">
+    <h2>1단계: 입사생 선발 관리</h2>
+    <p style="color: #666;">엑셀 양식을 업로드하고 거리 및 성적 기반 선발 알고리즘을 실행합니다.</p>
+</div>
+
+<div class="card">
+    <h3 style="margin-top: 0;"><i class="fas fa-file-import"></i> 데이터 및 설정 업로드</h3>
+    <p style="font-size: 0.85rem; color: #888;">* 설정.xlsx 파일에 카카오 및 ODsay API 키가 정확히 입력되었는지 확인해
+        주세요.</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">1. 학생 신청 데이터</label>
+            <div class="dropzone" id="stuDropzone" onclick="document.getElementById('stuFile').click()">
+                <i class="fa-solid fa-upload fa-2x"></i>
+                <p id="stuFileName">파일을 클릭하거나 여기에 드래그하세요</p>
+                <input type="file" id="stuFile" style="display:none;" onchange="updateFileName(this, 'stuFileName')">
+            </div>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">2. 기숙사 방 정보</label>
+            <div class="dropzone" id="roomDropzone" onclick="document.getElementById('roomFile').click()">
+                <i class="fa-solid fa-upload fa-2x"></i>
+                <p id="roomFileName">파일을 클릭하거나 여기에 드래그하세요</p>
+                <input type="file" id="roomFile" style="display:none;" onchange="updateFileName(this, 'roomFileName')">
+            </div>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">3. 설정 파일</label>
+            <div class="dropzone" id="configDropzone" onclick="document.getElementById('configFile').click()">
+                <i class="fa-solid fa-upload fa-2x"></i>
+                <p id="configFileName">파일을 클릭하거나 여기에 드래그하세요</p>
+                <input type="file" id="configFile" style="display:none;"
+                       onchange="updateFileName(this, 'configFileName')">
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="uploadAllData()">
+        모든 데이터 업로드
+    </button>
+</div>
+
+<div class="card">
+    <h3><i class="fas fa-calculator"></i> 선발 알고리즘 실행</h3>
+    <button class="btn btn-gold" onclick="runSelection()">
+        <i class="fas fa-play" style="margin-right: 8px;"></i> 거리 계산 및 선발 시작
+    </button>
+    <div id="progress-container" style="display:none; margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span id="progress-text"
+                  style="font-size: 0.9rem; font-weight: bold; color: var(--dmu-blue);">처리 중... (0%)</span>
+        </div>
+        <div style="width: 100%; background-color: #e0e0e0; border-radius: 10px; height: 12px; overflow: hidden;">
+            <div id="progress-bar"
+                 style="width: 0%; height: 100%; background-color: var(--dmu-blue); transition: width 0.3s ease;"></div>
+        </div>
+    </div>
+
+    <div id="status-bar" style="margin-top: 15px; font-weight: bold; color: var(--dmu-blue);"></div>
+
+    <div id="result-area" style="display:none; margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>선발 결과 리스트</h3>
+            <button onclick="downloadExcel()" class="btn-download">엑셀 다운로드 (.xlsx)</button>
+        </div>
+
+        <table border="1">
+            <thead>
+            <tr>
+                <th>학번</th>
+                <th>성명</th>
+                <th>성별</th>
+                <th>소요시간(분)</th>
+                <th>교통수단</th>
+                <th>통학점수</th>
+                <th>최종점수</th>
+                <th>배정결과</th>
+            </tr>
+            </thead>
+            <tbody id="result-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    async function uploadAllData() {
+        const stu = document.getElementById('stuFile').files[0];
+        const room = document.getElementById('roomFile').files[0];
+        const config = document.getElementById('configFile').files[0];
+
+        if (!stu || !room || !config) {
+            alert("학생, 방 정보, 설정 파일을 모두 선택해야 합니다.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('students', stu);
+        formData.append('rooms', room);
+        formData.append('config', config);
+
+        try {
+            // 경로 수정: /assignment/upload-selection-data
+            const resp = await fetch('/assignment/upload-selection-data', {method: 'POST', body: formData});
+            const res = await resp.json();
+            alert(res.message);
+        } catch (e) {
+            alert("서버 연결에 실패했습니다.");
+        }
+    }
+
+    async function runSelection() {
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const resultArea = document.getElementById('result-area');
+
+        progressContainer.style.display = 'block';
+        resultArea.style.display = 'none';
+        progressBar.style.width = '0%';
+        progressText.innerText = "데이터 분석 및 거리 계산 시작...";
+
+        try {
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 90) {
+                    clearInterval(interval);
+                } else {
+                    width += (95 - width) * 0.1;
+                    progressBar.style.width = width + '%';
+                    progressText.innerText = `거리 계산 및 선발 로직 실행 중... (${Math.round(width)}%)`;
+                }
+            }, 400);
+
+            // 경로 수정: /assignment/run-selection
+            const resp = await fetch('/assignment/run-selection', {method: 'POST'});
+            const result = await resp.json();
+
+            clearInterval(interval);
+
+            if (result.status === "success") {
+                progressBar.style.width = '100%';
+                progressText.innerText = "선발 완료! (100%)";
+                renderTable(result.data);
+
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    resultArea.style.display = 'block';
+                }, 500);
+            } else {
+                alert("오류: " + result.message);
+                progressContainer.style.display = 'none';
+            }
+        } catch (e) {
+            alert("서버 통신 오류가 발생했습니다.");
+            progressContainer.style.display = 'none';
+        }
+    }
+
+    function renderTable(data) {
+        const body = document.getElementById('result-body');
+        body.innerHTML = '';
+        data.forEach(item => {
+            body.innerHTML +=
+                `<tr>
+                    <td>${item['학번']}</td>
+                    <td>${item['성명']}</td>
+                    <td>${item['성별']}</td>
+                    <td style="font-weight:bold; color:#d9534f;">${item['소요시간(분)']}분</td>
+                    <td>${item['교통수단']}</td>
+                    <td>${parseFloat(item['통학 점수(70점)']).toFixed(2)}</td>
+                    <td style="font-weight:bold;">${parseFloat(item['최종 점수']).toFixed(2)}</td>
+                    <td>${item['배정결과']}</td>
+                </tr>`;
+        });
+    }
+
+    function downloadExcel() {
+        window.location.href = "/assignment/download-results";
+    }
+
+    // 파일 선택 시 이름 업데이트 함수
+    function updateFileName(input, targetId) {
+        const fileName = input.files[0] ? input.files[0].name : "클릭 또는 드래그";
+        document.getElementById(targetId).innerText = fileName;
+    }
+
+    // 드래그 앤 드롭 이벤트 일괄 등록
+    ['stuDropzone', 'roomDropzone', 'configDropzone'].forEach(id => {
+        const zone = document.getElementById(id);
+        const input = zone.querySelector('input[type="file"]');
+
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+
+        zone.addEventListener('dragleave', () => {
+            zone.classList.remove('dragover');
+        });
+
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+
+            if (e.dataTransfer.files.length > 0) {
+                input.files = e.dataTransfer.files;
+                updateFileName(input, zone.querySelector('p').id);
+            }
+        });
+    });
+</script>
+{% endblock %}
