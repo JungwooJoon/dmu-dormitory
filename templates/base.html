@@ -230,7 +230,7 @@
         <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 5px;">기숙사 통합 관리 시스템</p>
     </div>
     <nav class="sidebar-menu">
-        <a href="/" class="{{ 'active' if page == 'selection' else '' }}">
+        <a href="/assignment" class="{{ 'active' if page == 'selection' else '' }}">
             <i class="fas fa-user-check"></i> 1단계: 입사생 선발
         </a>
         <a href="/assignment/room-assignment" class="{{ 'active' if page == 'assignment' else '' }}">
@@ -245,6 +245,9 @@
         </a>
         <a href="/assignment/download-room-template">
             <i class="fas fa-file-download"></i> 방 정보 양식 다운로드
+        </a>
+        <a href="{{ url_for('static', path='설정.xlsx') }}" download="설정.xlsx">
+            <i class="fas fa-file-download"></i> 설정 파일 다운로드
         </a>
     </nav>
 </aside>
