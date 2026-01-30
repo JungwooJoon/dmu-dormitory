@@ -4,6 +4,7 @@ import logging
 from itertools import combinations
 from typing import Dict, List, Tuple, Optional
 from io import BytesIO
+import io
 
 # 로깅 설정
 logging.basicConfig(
@@ -25,21 +26,33 @@ MAJOR_TO_FACULTY_MAP = {
 
 # [2] 양식 생성 함수
 def generate_template_files():
-    # 요청하신 한글 컬럼 구성 반영
-    student_cols = [
-        '학번', '성명', '성별', '학과', '흡연여부', '생활패턴',
-        '희망룸메이트', '본인 핸드폰 번호', '우선선발', '성적', '주소',
-        '1지망', '2지망', '3지망'
+    # 1. 학생 양식 컬럼 구성 (요청하신 순서 그대로)
+    student_columns = [
+        "학번", "성명", "성별", "1지망", "2지망", "3지망", "학과", "학년",
+        "집주소", "성적", "본인 핸드폰 번호", "부모님 핸드폰 번호", "이메일",
+        "계좌번호", "은행", "생활패턴", "흡연여부", "희망하는 룸메이트 기재", "우선선발"
     ]
-    room_cols = ['호수', '유형', '성별', '인실', '가격']
 
-    student_io, room_io = BytesIO(), BytesIO()
-    with pd.ExcelWriter(student_io, engine='xlsxwriter') as writer:
-        pd.DataFrame(columns=student_cols).to_excel(writer, index=False)
-    with pd.ExcelWriter(room_io, engine='xlsxwriter') as writer:
-        pd.DataFrame(columns=room_cols).to_excel(writer, index=False)
+    # 쌤플 데이터 한 줄 추가 (작성 가이드용)
+    sample_student_data = [{
+        "학번": "20260001", "성명": "홍길동", "성별": "남자",
+        "1지망": "1인실(A형)", "2지망": "2인실", "3지망": "4인실",
+        "학과": "컴퓨터공학과", "학년": "1", "집주소": "강원특별자치도 강릉시...",
+        "성적": "4.5", "우선선발": "X"
+    }]
 
-    return student_io.getvalue(), room_io.getvalue()
+    # 데이터프레임 생성
+    df_student = pd.DataFrame(sample_student_data, columns=student_columns)
+
+    # 메모리 버퍼에 엑셀 파일 생성
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_student.to_excel(writer, sheet_name='학생 정보', index=False)
+        # (방 정보 템플릿 로직이 있다면 여기에 추가)
+
+    stu_template = output.getvalue()
+
+    return stu_template, None  # (두 번째 인자는 방 정보 템플릿용)
 
 
 # [3] 최적 룸메이트 쌍 산출

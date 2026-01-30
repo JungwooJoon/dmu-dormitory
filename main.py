@@ -131,7 +131,7 @@ async def download_results():
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -183,7 +183,7 @@ async def download_assignment_results():
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -208,6 +208,30 @@ async def download_room_template():
     return Response(content=room_template,
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"})
+
+
+@assignment_router.get("/download-setup-template")
+async def download_setup_template():
+    # 설정 파일 생성 로직 (예시)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        # 설정 관련 시트 생성 로직...
+        pd.DataFrame().to_excel(writer, sheet_name='설정')
+
+    excel_data = output.getvalue()
+
+    filename = "설정.xlsx"
+    encoded_filename = quote(filename)
+
+    return Response(
+        content=excel_data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition",  # CORS 환경에서 필요
+            "Cache-Control": "no-cache"  # 캐시 문제 방지
+        }
+    )
 
 
 app.include_router(assignment_router)
