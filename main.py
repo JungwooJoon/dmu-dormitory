@@ -212,15 +212,27 @@ async def download_room_template():
 
 @assignment_router.get("/download-setup-template")
 async def download_setup_template():
-    # 설정 파일 생성 로직 (예시)
+    # [1] 이미지(image_a20820.png)와 동일한 구성 데이터 생성
+    setup_data = [
+        {"항목": "카카오키", "값": "", "설명 (참고용)": "카카오 REST API 키"},
+        {"항목": "오디세이키", "값": "", "설명 (참고용)": "ODsay API 키"},
+        {"항목": "항공페널티", "값": "5", "설명 (참고용)": "항공 수단 가중치"},
+        {"항목": "고속철도페널티", "값": "2", "설명 (참고용)": "KTX 및 SRT 수단 가중치"},
+        {"항목": "고속버스페널티", "값": "2", "설명 (참고용)": "고속 및 시외버스 수단 가중치"},
+        {"항목": "학교주소", "값": "서울시 구로구 경인로 445", "설명 (참고용)": "거리 계산의 도착 지점"},
+        {"항목": "재학생성적", "값": "4.5:30,4.0:25,3.5:20,3.0:15,2.5:10", "설명 (참고용)": "학점 구간별 점수 매핑"},
+        {"항목": "신입생성적", "값": "950:30,900:25,850:20,800:15,750:10,700:5", "설명 (참고용)": "1000점 만점 구간별 점수 매핑"}
+    ]
+
+    df_setup = pd.DataFrame(setup_data)
+
     output = io.BytesIO()
+    # [2] xlsxwriter를 사용하여 시트 생성 및 서식(선택사항) 적용
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # 설정 관련 시트 생성 로직...
-        pd.DataFrame().to_excel(writer, sheet_name='설정')
+        df_setup.to_excel(writer, sheet_name='설정', index=False)
 
     excel_data = output.getvalue()
-
-    filename = "설정.xlsx"
+    filename = "설정(양식).xlsx"
     encoded_filename = quote(filename)
 
     return Response(
@@ -228,8 +240,8 @@ async def download_setup_template():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
-            "Access-Control-Expose-Headers": "Content-Disposition",  # CORS 환경에서 필요
-            "Cache-Control": "no-cache"  # 캐시 문제 방지
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Cache-Control": "no-cache"
         }
     )
 

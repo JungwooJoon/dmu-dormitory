@@ -23,6 +23,40 @@ MAJOR_TO_FACULTY_MAP = {
 }
 
 
+def generate_template_files():
+    # [1] 학생 정보 템플릿 설정
+    student_columns = [
+        "학번", "성명", "성별", "1지망", "2지망", "3지망", "학과", "학년",
+        "집주소", "성적", "본인 핸드폰 번호", "부모님 핸드폰 번호", "이메일",
+        "계좌번호", "은행", "예금주", "생활패턴", "흡연여부", "희망하는 룸메이트 기재", "우선선발"
+    ]
+    sample_student_data = [{
+        "학번": "20260001", "성명": "홍길동", "성별": "남자",
+        "1지망": "1인실(A형)", "2지망": "2인실", "3지망": "4인실",
+        "학과": "컴퓨터공학과", "학년": "1", "집주소": "강원특별자치도 강릉시...",
+        "성적": "4.5", "우선선발": "X"
+    }]
+    df_stu = pd.DataFrame(sample_student_data, columns=student_columns)
+    stu_output = io.BytesIO()
+    with pd.ExcelWriter(stu_output, engine='xlsxwriter') as writer:
+        df_stu.to_excel(writer, sheet_name='학생 정보', index=False)
+    stu_template = stu_output.getvalue()
+
+    # [2] 방 정보 템플릿 설정
+    room_columns = ["호수", "유형", "성별", "인실", "가격"]
+    sample_room_data = [
+        {"호수": "201", "유형": "A형", "성별": "남자", "인실": "1", "가격": "1000000"},
+        {"호수": "F-1인실-1", "유형": "F형", "성별": "여자", "인실": "2", "가격": "800000"}
+    ]
+    df_room = pd.DataFrame(sample_room_data, columns=room_columns)
+    room_output = io.BytesIO()
+    with pd.ExcelWriter(room_output, engine='xlsxwriter') as writer:
+        df_room.to_excel(writer, sheet_name='방 정보', index=False)
+    room_template = room_output.getvalue()
+
+    return stu_template, room_template
+
+
 # [2] 최적 룸메이트 쌍 산출 (2인 단위 알고리즘 매칭용)
 def find_best_pair_info(unassigned_students: pd.DataFrame) -> Optional[Dict]:
     possible_pairs = []
