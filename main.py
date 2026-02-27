@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Request, UploadFile, File, APIRouter
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse, HTMLResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from urllib.parse import quote
 import logging
+import re
 import pandas as pd
 import numpy as np
 import io
@@ -60,6 +61,11 @@ async def read_selection(request: Request):
 @assignment_router.get("/room-assignment")
 async def read_assignment(request: Request):
     return templates.TemplateResponse("assignment.html", {"request": request, "page": "assignment"})
+
+
+@assignment_router.get("/export-format")
+async def read_export_page(request: Request):
+    return templates.TemplateResponse("export.html", {"request": request, "page": "export"})
 
 
 # ==========================================
@@ -243,6 +249,68 @@ async def download_setup_template():
             "Access-Control-Expose-Headers": "Content-Disposition",
             "Cache-Control": "no-cache"
         }
+    )
+
+
+@assignment_router.post("/convert-to-official")
+async def convert_to_official(file: UploadFile = File(...)):
+    content = await file.read()
+    df = pd.read_excel(io.BytesIO(content))
+
+    def format_phone(val):
+        if pd.isna(val) or str(val).strip() == "":
+            return ""
+        s = str(val).split('.')[0].strip()
+        s = "".join(filter(str.isdigit, s))
+        if len(s) == 10 and s.startswith('1'):
+            return '0' + s
+        return s
+
+    def get_floor(room_no):
+        nums = re.findall(r'\d+', str(room_no))
+        if nums:
+            return nums[0][0] if len(nums[0]) >= 3 else "1"
+        return "1"
+
+    final_df = pd.DataFrame()
+    final_df['No'] = range(1, len(df) + 1)
+    final_df['Floor'] = df['방 번호'].apply(get_floor) if '방 번호' in df.columns else ""
+    final_df['Room_No'] = df['방 번호'] if '방 번호' in df.columns else ""
+    final_df['Room_Type'] = df['타입_매칭용'] if '타입_매칭용' in df.columns else ""
+    final_df['Hakbun'] = df['학번'].astype(str) if '학번' in df.columns else ""
+    final_df['Name'] = df['성명'] if '성명' in df.columns else ""
+    final_df['Sex'] = df['성별'] if '성별' in df.columns else ""
+    final_df['Dep'] = df['학과'] if '학과' in df.columns else ""
+    final_df['Grade'] = df['성적'] if '성적' in df.columns else ""
+
+    if '본인 핸드폰 번호' in df.columns:
+        final_df['Phone'] = df['본인 핸드폰 번호'].apply(format_phone)
+    else:
+        final_df['Phone'] = ""
+
+    final_df['E-mail'] = ""
+    final_df['Guardian_Phone'] = ""
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        final_df.to_excel(writer, index=False, sheet_name='Sheet1')
+
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
+
+        format_text = workbook.add_format({'num_format': '@'})
+
+        worksheet.set_column('E:E', None, format_text)
+        worksheet.set_column('J:J', None, format_text)
+
+    output.seek(0)
+    filename = "최종_배정명단.xlsx"
+    encoded_filename = quote(filename)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="content-header">
+    <h2><i class="fas fa-file-export"></i> 3단계: 공식 양식 변환 및 출력</h2>
+    <p>배정 완료된 엑셀 파일을 업로드하면 제출용 공식 양식(12개 컬럼)으로 변환합니다.</p>
+</div>
+
+<div class="card">
+    <div class="dropzone" id="export-dropzone" onclick="document.getElementById('file-input').click()">
+        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem;"></i>
+        <p id="file-name">배정 결과 엑셀 파일을 여기에 드래그하거나 클릭하여 업로드하세요</p>
+        <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(this)">
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button class="btn btn-download" id="convert-btn" onclick="startConversion()" style="display: none;">
+            <i class="fas fa-magic"></i> 공식 양식으로 변환하여 다운로드
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <h3><i class="fas fa-info-circle"></i> 변환 필드 안내 (12개 컬럼)</h3>
+    <p style="font-size: 0.9rem; color: #666;">업로드하신 파일의 데이터를 기반으로 아래와 같이 매핑됩니다.</p>
+    <table style="font-size: 0.85rem;">
+        <tr style="background: #f8f9fa;">
+            <th>No</th>
+            <th>Floor</th>
+            <th>Room_No</th>
+            <th>Room_Type</th>
+            <th>Hakbun</th>
+            <th>Name</th>
+        </tr>
+        <tr>
+            <td>순번</td>
+            <td>방 번호 기반</td>
+            <td>배정된 방</td>
+            <td>타입_매칭용</td>
+            <td>학번</td>
+            <td>성명</td>
+        </tr>
+        <tr style="background: #f8f9fa;">
+            <th>Sex</th>
+            <th>Dep</th>
+            <th>Grade</th>
+            <th>Phone</th>
+            <th>E-mail</th>
+            <th>Guardian_Phone</th>
+        </tr>
+        <tr>
+            <td>성별</td>
+            <td>학과</td>
+            <td>성적</td>
+            <td>본인 연락처</td>
+            <td>이메일</td>
+            <td>학부모 연락처</td>
+        </tr>
+    </table>
+</div>
+
+<script>
+    const dropzone = document.getElementById('export-dropzone');
+    const fileInput = document.getElementById('file-input');
+    const fileNameDisplay = document.getElementById('file-name');
+    const convertBtn = document.getElementById('convert-btn');
+
+    let selectedFile = null;
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // [추가] 드래그 시 시각적 효과 (점선 강조)
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => {
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
+
+    // [추가] 실제 파일을 드롭했을 때 처리
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files && files[0]) {
+            handleFileSelect({files: files});
+        }
+    });
+
+    // 기존 파일 선택 처리 함수 보완
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            selectedFile = input.files[0];
+
+            // 엑셀 파일 검증 (선택사항)
+            if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
+                alert("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.");
+                selectedFile = null;
+                return;
+            }
+
+            fileNameDisplay.innerText = `선택된 파일: ${selectedFile.name}`;
+            convertBtn.style.display = 'inline-flex';
+        }
+    }
+
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            selectedFile = input.files[0];
+            document.getElementById('file-name').innerText = selectedFile.name;
+            document.getElementById('convert-btn').style.display = 'inline-flex';
+        }
+    }
+
+    async function startConversion() {
+        if (!selectedFile) return;
+
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        try {
+            const response = await fetch("/assignment/convert-to-official", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "최종_공식_배정명단.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                alert("변환 중 오류가 발생했습니다. 파일 형식을 확인해주세요.");
+            }
+        } catch (error) {
+            alert("서버 통신 오류가 발생했습니다.");
+        }
+    }
+</script>
+{% endblock %}
